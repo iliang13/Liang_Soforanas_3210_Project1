@@ -132,7 +132,7 @@
           CONFIG.puzzleArea.borderColor,
         );
         puzzleRect.position.set(0, puzzleCenterY, 0);
-        layoutGroup.add(puzzleRect);
+        if (CONFIG.puzzleArea.height > 0) layoutGroup.add(puzzleRect);
 
         const trayHeight = Math.max(100, h * 0.2);
         const trayWidth = w * 0.9;
