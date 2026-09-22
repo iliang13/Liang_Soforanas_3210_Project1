@@ -1,23 +1,215 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>CSC3210 Puzzle Pandemonium </title>
-        <meta name = "viewport" content=" width=device-width, initial-scale=1" />
-        <style>
-            html,body { margin: 0; padding: 0; overflow: hidden; background: #1b1d23;}
-            canvas { display : block; }
-            #label {
-                position: fixed; top: 12px; left: 16px;
-                font-family: sans-serif; color: #eee; font-size: 14px;
-                background: rgba(0, 0, 0, 0.35); padding: 6px 10px; border-radius: 4px;
-            }
-        </style>
-    </head>
+  <head>
+    <meta charset="UTF-8" />
+    <title>CSC3210 Puzzle Pandemonium</title>
+    <meta name="viewport" content=" width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #1b1d23;
+      }
+      canvas {
+        display: block;
+      }
+      #label {
+        position: fixed;
+        top: 12px;
+        left: 16px;
+        font-family: sans-serif;
+        color: #eee;
+        font-size: 14px;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
 
-    <body>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-    
-    </body>
+  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      const CONFIG = {
+        octagon: {
+          radius: 280,
+          sides: 8,
+          rotationOffset: Math.PI / 8,
+          color: 0xffffff,
+          lineWidth: 3,
+        },
+        puzzleArea: {
+          width: 600,
+          height: 600,
+          color: 0x2c2f3a,
+          borderColor: 0x4a4e5c,
+        },
+        trayArea: {
+          color: 0x22242c,
+          borderColor: 0x3a3d47,
+        },
+        background: 0x1b1d23,
+      };
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(CONFIG.background);
+
+      let camera;
+      function makeCamera() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera = new THREE.OrthographicCamera(
+          -w / 2,
+          w / 2,
+          h / 2,
+          -h / 2,
+          0.1,
+          1000,
+        );
+        camera.position.z = 10;
+      }
+      makeCamera();
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+
+      const layoutGroup = new THREE.Group();
+      scene.add(layoutGroup);
+
+      function makeRect(width, height, fillColor, borderColor) {
+        const group = new THREE.Group();
+
+        const fillGeom = new THREE.PlaneGeometry(width, height);
+        const fillMat = new THREE.MeshBasicMaterial({ color: fillColor });
+        const fill = new THREE.Mesh(fillGeom, fillMat);
+        group.add(fill);
+
+        const hw = width / 2;
+        const hh = height / 2;
+        const borderPoints = [
+          new THREE.Vector3(-hw, -hh, 0.01),
+          new THREE.Vector3(hw, -hh, 0.01),
+          new THREE.Vector3(hw, hh, 0.01),
+          new THREE.Vector3(-hw, hh, 0.01),
+          new THREE.Vector3(-hw, -hh, 0.01),
+        ];
+
+        const borderGeom = new THREE.BufferGeometry().setFromPoints(
+          borderPoints,
+        );
+        const borderMat = new THREE.LineBasicMaterial({ color: borderColor });
+        group.add(new THREE.Line(borderGeom, borderMat));
+
+        return group;
+      }
+
+      function buildLayout() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        layoutGroup.clear();
+
+        const puzzleCenterY = h * 0.08;
+        const puzzleRect = makeRect(
+          CONFIG.puzzleArea.width,
+          CONFIG.puzzleArea.height,
+          CONFIG.puzzleArea.color,
+          CONFIG.puzzleArea.borderColor,
+        );
+        puzzleRect.position.set(0, puzzleCenterY, 0);
+        layoutGroup.add(puzzleRect);
+
+        const trayHeight = Math.max(100, h * 0.2);
+        const trayWidth = w * 0.9;
+        const trayCenterY = -h / 2 + trayHeight / 2 + 20;
+        const trayRect = makeRect(
+          trayWidth,
+          trayHeight,
+          CONFIG.trayArea.color,
+          CONFIG.trayArea.borderColor,
+        );
+        trayRect.position.set(0, trayCenterY, 0);
+        layoutGroup.add(trayRect);
+
+        return {
+          puzzleCenter: new THREE.Vector2(0, puzzleCenterY),
+          trayCenter: new THREE.Vector2(0, trayCenterY),
+          trayBounds: { width: trayWidth, height: trayHeight },
+        };
+      }
+
+      let layout = buildLayout();
+
+      function computeOctagonVertices(radius, sides, rotationOffset) {
+        const verts = [];
+        for (let i = 0; i < sides; i++) {
+          const angle = rotationOffset + (i / sides) * Math.PI * 2;
+          verts.push(
+            new THREE.Vector2(
+              radius * Math.cos(angle),
+              radius * Math.sin(angle),
+            ),
+          );
+        }
+        return verts;
+      }
+
+      function buildOctagonOutline(centerY) {
+        const verts = computeOctagonVertices(
+          CONFIG.octagon.radius,
+          CONFIG.octagon.sides,
+          CONFIG.octagon.rotationOffset,
+        );
+
+        const points = verts.map(
+          (v) => new THREE.Vector3(v.x, v.y + centerY, 0.02),
+        );
+        points.push(points[0].clone());
+
+        const geom = new THREE.BufferGeometry().setFromPoints(points);
+        const mat = new THREE.LineBasicMaterial({
+          color: CONFIG.octagon.color,
+          linewidth: CONFIG.octagon.lineWidth,
+        });
+        const outline = new THREE.Line(geom, mat);
+
+        return { outline, verts };
+      }
+
+      const octagonGroup = new THREE.Group();
+      scene.add(octagonGroup);
+
+      function rebuildOctagon() {
+        octagonGroup.clear();
+        const { outline } = buildOctagonOutline(layout.puzzleCenter.y);
+        octagonGroup.add(outline);
+      }
+
+      rebuildOctagon();
+
+      window.addEventListener("resize", () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        camera.left = -w / 2;
+        camera.right = w / 2;
+        camera.top = h / 2;
+        camera.bottom = -h / 2;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(w, h);
+
+        layout = buildLayout();
+        rebuildOctagon();
+      });
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+      animate();
+    </script>
+  </body>
 </html>
