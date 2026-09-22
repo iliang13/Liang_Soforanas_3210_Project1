@@ -41,8 +41,8 @@
           lineWidth: 3,
         },
         puzzleArea: {
-          width: 600,
-          height: 600,
+          width: 550,
+          height: 0,
           color: 0x2c2f3a,
           borderColor: 0x4a4e5c,
         },
@@ -51,6 +51,18 @@
           borderColor: 0x3a3d47,
         },
         background: 0x1b1d23,
+      };
+
+      const PIECES_CONFIG = {
+        totalPieces: 10,
+        innerRadiusRatio: 0.5,
+        twist: Math.PI / 8,
+        trayScale: 0.35,
+        snapDistance: 60,
+        colors: [
+          0xe76f51, 0xf4a261, 0x2a9d8f, 0xe9c46a, 0x457b9d, 0xa8dadc, 0xf28482,
+          0x84a59d, 0xf6bd60, 0x6d597a,
+        ],
       };
 
       const scene = new THREE.Scene();
@@ -190,6 +202,183 @@
 
       rebuildOctagon();
 
+      function buildPuzzlePieces() {
+        const n = CONFIG.octagon.sides;
+
+        const outer = computeOctagonVertices(
+          CONFIG.octagon.radius,
+          n,
+          CONFIG.octagon.rotationOffset,
+        );
+
+        const innerRadius =
+          CONFIG.octagon.radius * PIECES_CONFIG.innerRadiusRatio;
+        const inner = computeOctagonVertices(
+          innerRadius,
+          n,
+          CONFIG.octagon.rotationOffset + PIECES_CONFIG.twist,
+        );
+
+        const pieceShapes = [];
+
+        for (let i = 0; i < n; i++) {
+          const next = (i + 1) % n;
+          pieceShapes.push([
+            outer[i].clone(),
+            outer[next].clone(),
+            inner[next].clone(),
+            inner[i].clone(),
+          ]);
+        }
+
+        const half = n / 2;
+
+        const pentagonA = [];
+        for (let i = 0; i <= half; i++) {
+          pentagonA.push(inner[i % n].clone());
+        }
+        pieceShapes.push(pentagonA);
+
+        const pentagonB = [];
+        for (let i = half; i <= n; i++) pentagonB.push(inner[i % n].clone());
+        pieceShapes.push(pentagonB);
+
+        return pieceShapes;
+      }
+
+      class PuzzlePiece {
+        constructor(id, localVertices, color) {
+          this.id = id;
+          this.localVertices = localVertices;
+          this.color = color;
+          this.group = new THREE.Group();
+          this.group.userData.piece = this;
+          this._buildMesh();
+        }
+
+        _buildMesh() {
+          const shape = new THREE.Shape(this.localVertices);
+          const fillGeom = new THREE.ShapeGeometry(shape);
+          const fillMat = new THREE.MeshBasicMaterial({
+            color: this.color,
+            side: THREE.DoubleSide,
+          });
+          this.group.add(new THREE.Mesh(fillGeom, fillMat));
+
+          const outlinePts = this.localVertices.map(
+            (v) => new THREE.Vector3(v.x, v.y, 0.01),
+          );
+
+          outlinePts.push(outlinePts[0].clone());
+          const outlineGeom = new THREE.BufferGeometry().setFromPoints(
+            outlinePts,
+          );
+
+          const outlineMat = new THREE.LineBasicMaterial({ color: 0x0c0d10 });
+          this.group.add(new THREE.Line(outlineGeom, outlineMat));
+        }
+
+        setPosition(x, y) {
+          this.group.position.set(x, y, 0);
+        }
+      }
+
+      let pieces = [];
+      const piecesGroup = new THREE.Group();
+      scene.add(piecesGroup);
+
+      function buildPlacePieces() {
+        piecesGroup.clear();
+        pieces = [];
+        const shapes = buildPuzzlePieces();
+        const startRadius = Math.min(
+          CONFIG.octagon.radius + 100,
+          Math.min(window.innerWidth, window.innerHeight) * 0.42,
+        );
+
+        shapes.forEach((verts, i) => {
+          const piece = new PuzzlePiece(
+            i,
+            verts,
+            PIECES_CONFIG.colors[i % PIECES_CONFIG.colors.length],
+          );
+          piece.group.scale.setScalar(PIECES_CONFIG.trayScale);
+          piece.snapTarget = new THREE.Vector3(0, layout.puzzleCenter.y, 0);
+
+          const angle = (i / shapes.length) * Math.PI * 2;
+          piece.setPosition(
+            Math.cos(angle) * startRadius,
+            layout.puzzleCenter.y + Math.sin(angle) * startRadius,
+          );
+          piecesGroup.add(piece.group);
+          pieces.push(piece);
+        });
+      }
+
+      buildPlacePieces();
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const dragPoint = new THREE.Vector3();
+      let draggedPiece = null;
+      let dragOffset = new THREE.Vector3();
+
+      function updatePointerPosition(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      }
+
+      renderer.domElement.addEventListener("pointerdown", (event) => {
+        updatePointerPosition(event);
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(piecesGroup.children, true);
+        if (!hits.length) return;
+
+        let pieceGroup = hits[0].object;
+        while (pieceGroup.parent && pieceGroup.parent !== piecesGroup) {
+          pieceGroup = pieceGroup.parent;
+        }
+
+        draggedPiece = pieceGroup.userData.piece;
+        if (
+          !draggedPiece ||
+          !raycaster.ray.intersectPlane(dragPlane, dragPoint)
+        ) {
+          draggedPiece = null;
+          return;
+        }
+
+        draggedPiece.group.scale.setScalar(1);
+        dragOffset.copy(draggedPiece.group.position).sub(dragPoint);
+        renderer.domElement.setPointerCapture(event.pointerId);
+      });
+
+      renderer.domElement.addEventListener("pointermove", (event) => {
+        if (!draggedPiece) return;
+        updatePointerPosition(event);
+        raycaster.setFromCamera(pointer, camera);
+        if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
+          draggedPiece.group.position.copy(dragPoint).add(dragOffset);
+        }
+      });
+
+      renderer.domElement.addEventListener("pointerup", (event) => {
+        if (draggedPiece) {
+          const distanceToTarget = draggedPiece.group.position.distanceTo(
+            draggedPiece.snapTarget,
+          );
+          if (distanceToTarget <= PIECES_CONFIG.snapDistance) {
+            draggedPiece.group.position.copy(draggedPiece.snapTarget);
+          }
+        }
+        draggedPiece = null;
+        if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+          renderer.domElement.releasePointerCapture(event.pointerId);
+        }
+      });
+
       window.addEventListener("resize", () => {
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -204,6 +393,7 @@
 
         layout = buildLayout();
         rebuildOctagon();
+        buildPlacePieces();
       });
       function animate() {
         requestAnimationFrame(animate);
