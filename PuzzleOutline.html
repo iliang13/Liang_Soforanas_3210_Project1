@@ -404,6 +404,17 @@
           );
           if (distanceToTarget <= PIECES_CONFIG.snapDistance) {
             draggedPiece.group.position.copy(draggedPiece.snapTarget);
+
+            if (!draggedPiece.locked) {
+              draggedPiece.locked = true;
+              completedPieces++;
+            }
+
+            if (completedPieces === pieces.length) {
+              puzzleComplete = true;
+
+              alert(`Puzzle Complete! Time: ${elapsedTime} seconds`);
+            }
           }
         }
         draggedPiece = null;
@@ -443,9 +454,6 @@
         renderer.render(scene, camera);
       }
       animate();
-      if (completedPieces === pieces.length) {
-        alert("Puzzle Complete!");
-      }
     </script>
   </body>
 </html>
