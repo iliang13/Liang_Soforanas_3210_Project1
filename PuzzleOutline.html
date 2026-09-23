@@ -32,6 +32,8 @@
   <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+      let completedPieces = 0;
+      let puzzleComplete = false;
       const CONFIG = {
         octagon: {
           radius: 280,
@@ -263,6 +265,7 @@
           this.id = id;
           this.localVertices = localVertices;
           this.color = color;
+          this.locked = false;
           this.group = new THREE.Group();
           this.group.userData.piece = this;
           this._buildMesh();
@@ -417,6 +420,9 @@
         renderer.render(scene, camera);
       }
       animate();
+      if (completedPieces === pieces.length) {
+        alert("Puzzle Complete!");
+      }
     </script>
   </body>
 </html>
