@@ -26,10 +26,23 @@
         padding: 6px 10px;
         border-radius: 4px;
       }
+
+      #timer {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        font-family: sans-serif;
+        color: #eee;
+        font-size: 14px;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
     </style>
   </head>
 
   <body>
+    <div id="timer">Time: 0s</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
       let completedPieces = 0;
@@ -398,7 +411,8 @@
           renderer.domElement.releasePointerCapture(event.pointerId);
         }
       });
-
+      let startTime = Date.now();
+      let elapsedTime = 0;
       window.addEventListener("resize", () => {
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -417,6 +431,15 @@
       });
       function animate() {
         requestAnimationFrame(animate);
+
+        if (!puzzleComplete) {
+          elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+
+          document.getElementById(
+            "timer"
+          ).textContent = `Time: ${elapsedTime}s`;
+        }
+
         renderer.render(scene, camera);
       }
       animate();
