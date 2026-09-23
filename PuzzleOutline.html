@@ -72,7 +72,7 @@
         totalPieces: 10,
         innerRadiusRatio: 0.5,
         twist: Math.PI / 8,
-        trayScale: 0.35,
+        trayScale: 0.25,
         snapDistance: 60,
         colors: [
           0xe76f51, 0xf4a261, 0x2a9d8f, 0xe9c46a, 0x457b9d, 0xa8dadc, 0xf28482,
@@ -149,7 +149,7 @@
         puzzleRect.position.set(0, puzzleCenterY, 0);
         if (CONFIG.puzzleArea.height > 0) layoutGroup.add(puzzleRect);
 
-        const trayHeight = Math.max(100, h * 0.2);
+        const trayHeight = Math.max(180, h * 0.25);
         const trayWidth = w * 0.9;
         const trayCenterY = -h / 2 + trayHeight / 2 + 20;
         const trayRect = makeRect(
@@ -321,8 +321,8 @@
         const shapes = buildPuzzlePieces();
 
         const startRadius = Math.min(
-          CONFIG.octagon.radius + 100,
-          Math.min(window.innerWidth, window.innerHeight) * 0.42
+          CONFIG.octagon.radius + 80,
+          Math.min(window.innerWidth, window.innerHeight) * 0.28
         );
 
         shapes.forEach((verts, i) => {
@@ -336,12 +336,22 @@
 
           piece.snapTarget = new THREE.Vector3(0, layout.puzzleCenter.y, 0);
 
-          const angle = (i / shapes.length) * Math.PI * 2;
+          const cols = 5;
 
-          piece.setPosition(
-            Math.cos(angle) * startRadius,
-            layout.puzzleCenter.y + Math.sin(angle) * startRadius
-          );
+          const trayWidth = layout.trayBounds.width;
+          const trayHeight = layout.trayBounds.height;
+
+          const cellWidth = trayWidth / cols;
+          const cellHeight = trayHeight / 2;
+
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+
+          const x = -trayWidth / 2 + cellWidth * (col + 0.5);
+
+          const y = layout.trayCenter.y + (row === 0 ? 35 : -35);
+
+          piece.setPosition(x, y);
 
           piecesGroup.add(piece.group);
           pieces.push(piece);
