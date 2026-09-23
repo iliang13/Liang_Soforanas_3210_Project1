@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -78,7 +78,7 @@
           h / 2,
           -h / 2,
           0.1,
-          1000,
+          1000
         );
         camera.position.z = 10;
       }
@@ -111,7 +111,7 @@
         ];
 
         const borderGeom = new THREE.BufferGeometry().setFromPoints(
-          borderPoints,
+          borderPoints
         );
         const borderMat = new THREE.LineBasicMaterial({ color: borderColor });
         group.add(new THREE.Line(borderGeom, borderMat));
@@ -129,7 +129,7 @@
           CONFIG.puzzleArea.width,
           CONFIG.puzzleArea.height,
           CONFIG.puzzleArea.color,
-          CONFIG.puzzleArea.borderColor,
+          CONFIG.puzzleArea.borderColor
         );
         puzzleRect.position.set(0, puzzleCenterY, 0);
         if (CONFIG.puzzleArea.height > 0) layoutGroup.add(puzzleRect);
@@ -141,7 +141,7 @@
           trayWidth,
           trayHeight,
           CONFIG.trayArea.color,
-          CONFIG.trayArea.borderColor,
+          CONFIG.trayArea.borderColor
         );
         trayRect.position.set(0, trayCenterY, 0);
         layoutGroup.add(trayRect);
@@ -162,8 +162,8 @@
           verts.push(
             new THREE.Vector2(
               radius * Math.cos(angle),
-              radius * Math.sin(angle),
-            ),
+              radius * Math.sin(angle)
+            )
           );
         }
         return verts;
@@ -173,11 +173,11 @@
         const verts = computeOctagonVertices(
           CONFIG.octagon.radius,
           CONFIG.octagon.sides,
-          CONFIG.octagon.rotationOffset,
+          CONFIG.octagon.rotationOffset
         );
 
         const points = verts.map(
-          (v) => new THREE.Vector3(v.x, v.y + centerY, 0.02),
+          (v) => new THREE.Vector3(v.x, v.y + centerY, 0.02)
         );
         points.push(points[0].clone());
 
@@ -208,16 +208,28 @@
         const outer = computeOctagonVertices(
           CONFIG.octagon.radius,
           n,
-          CONFIG.octagon.rotationOffset,
+          CONFIG.octagon.rotationOffset
         );
 
         const innerRadius =
           CONFIG.octagon.radius * PIECES_CONFIG.innerRadiusRatio;
-        const inner = computeOctagonVertices(
-          innerRadius,
-          n,
-          CONFIG.octagon.rotationOffset + PIECES_CONFIG.twist,
-        );
+        const inner = [];
+
+        for (let i = 0; i < n; i++) {
+          const angle =
+            CONFIG.octagon.rotationOffset +
+            PIECES_CONFIG.twist +
+            (i / n) * Math.PI * 2;
+
+          const randomRadius = innerRadius * (0.8 + Math.random() * 0.4);
+
+          inner.push(
+            new THREE.Vector2(
+              randomRadius * Math.cos(angle),
+              randomRadius * Math.sin(angle)
+            )
+          );
+        }
 
         const pieceShapes = [];
 
@@ -266,12 +278,12 @@
           this.group.add(new THREE.Mesh(fillGeom, fillMat));
 
           const outlinePts = this.localVertices.map(
-            (v) => new THREE.Vector3(v.x, v.y, 0.01),
+            (v) => new THREE.Vector3(v.x, v.y, 0.01)
           );
 
           outlinePts.push(outlinePts[0].clone());
           const outlineGeom = new THREE.BufferGeometry().setFromPoints(
-            outlinePts,
+            outlinePts
           );
 
           const outlineMat = new THREE.LineBasicMaterial({ color: 0x0c0d10 });
@@ -286,30 +298,35 @@
       let pieces = [];
       const piecesGroup = new THREE.Group();
       scene.add(piecesGroup);
-
       function buildPlacePieces() {
         piecesGroup.clear();
         pieces = [];
+
         const shapes = buildPuzzlePieces();
+
         const startRadius = Math.min(
           CONFIG.octagon.radius + 100,
-          Math.min(window.innerWidth, window.innerHeight) * 0.42,
+          Math.min(window.innerWidth, window.innerHeight) * 0.42
         );
 
         shapes.forEach((verts, i) => {
           const piece = new PuzzlePiece(
             i,
             verts,
-            PIECES_CONFIG.colors[i % PIECES_CONFIG.colors.length],
+            PIECES_CONFIG.colors[i % PIECES_CONFIG.colors.length]
           );
+
           piece.group.scale.setScalar(PIECES_CONFIG.trayScale);
+
           piece.snapTarget = new THREE.Vector3(0, layout.puzzleCenter.y, 0);
 
           const angle = (i / shapes.length) * Math.PI * 2;
+
           piece.setPosition(
             Math.cos(angle) * startRadius,
-            layout.puzzleCenter.y + Math.sin(angle) * startRadius,
+            layout.puzzleCenter.y + Math.sin(angle) * startRadius
           );
+
           piecesGroup.add(piece.group);
           pieces.push(piece);
         });
@@ -367,7 +384,7 @@
       renderer.domElement.addEventListener("pointerup", (event) => {
         if (draggedPiece) {
           const distanceToTarget = draggedPiece.group.position.distanceTo(
-            draggedPiece.snapTarget,
+            draggedPiece.snapTarget
           );
           if (distanceToTarget <= PIECES_CONFIG.snapDistance) {
             draggedPiece.group.position.copy(draggedPiece.snapTarget);
