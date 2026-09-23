@@ -449,6 +449,8 @@
           document.getElementById(
             "timer"
           ).textContent = `Time: ${elapsedTime}s`;
+        } else {
+          octagonGroup.rotation.z += 0.01;
         }
 
         renderer.render(scene, camera);
